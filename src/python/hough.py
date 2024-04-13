@@ -10,7 +10,7 @@ def main(argv):
  
 #  default_file = "C:\\Users\\ajbbh\\OneDrive\\Pictures\\angular_z.png"
 #  filename = argv[0] if len(argv) > 0 else default_file
-#  # Loads an image
+#  # Loads an images
 #  src = cv.imread(cv.samples.findFile(filename), cv.IMREAD_GRAYSCALE)
 #  # Check if image is loaded fine
 #  if src is None:
