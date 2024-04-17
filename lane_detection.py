@@ -57,11 +57,11 @@ def verify_lines(lanes, side):
     AGC_verifed_lanes = []
 
     if side == 'l':
-        lower_bound = -45 - c
+        lower_bound = -90
         upper_bound = -45 + c
     elif side == 'r':
         lower_bound = 45 - c
-        upper_bound = 45 + c
+        upper_bound = 90
 
     for [x1, y1, x2, y2] in lanes:
         fit = np.polyfit((x1, x2), (y1, y2), 1)
@@ -88,7 +88,7 @@ def split_lanes(width, hough_lines):
     return left_lanes, right_lanes
 
 # Main execution block
-video_capture = cv.VideoCapture(r"E:\CV_Project\lane-detection\data\video\video1.mp4")
+video_capture = cv.VideoCapture(r"E:\CV_Project\lane-detection\data\video\video2.mp4")
 while video_capture.isOpened():
     successful_frame_read, frame = video_capture.read()
     if not successful_frame_read:
