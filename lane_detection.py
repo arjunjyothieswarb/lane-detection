@@ -88,7 +88,7 @@ def split_lanes(width, hough_lines):
     return left_lanes, right_lanes
 
 # Main execution block
-video_capture = cv.VideoCapture(r"E:\CV_Project\lane-detection\data\video\video2.mp4")
+video_capture = cv.VideoCapture(r"data\video\video2.mp4")
 while video_capture.isOpened():
     successful_frame_read, frame = video_capture.read()
     if not successful_frame_read:
