@@ -12,7 +12,7 @@ def define_region_of_interest(frame):
     frame_height, frame_width = frame.shape[:2]
     top_width = frame_width // 3
     bottom_width = frame_width
-    mid_height = frame_height // 2
+    mid_height = 2 * frame_height // 3
     mask_vertices = np.array([
         [(frame_width // 2 - top_width // 2, mid_height),
          (frame_width // 2 + top_width // 2, mid_height),
@@ -53,23 +53,20 @@ def debug_draw(frame, lanes):
 
 
 def verify_lines(lanes, side):
-    c = 10
+    c = 20
     AGC_verifed_lanes = []
 
     if side == 'l':
+        lower_bound = -45 - c
+        upper_bound = -45 + c
+    elif side == 'r':
         lower_bound = 45 - c
         upper_bound = 45 + c
-    elif side == 'r':
-        lower_bound = 135 - c
-        upper_bound = 135 + c
 
     for [x1, y1, x2, y2] in lanes:
-        # slope = math.degrees(math.atan(float(x2 - x1)/(y2 - y1)))
         fit = np.polyfit((x1, x2), (y1, y2), 1)
         slope = math.degrees(fit[0])
-        # print([x1, y1, x2, y2])
-        # print(slope)
-        # print("\n-------\n")    
+
         if lower_bound <= slope and slope <= upper_bound:
             AGC_verifed_lanes.append([x1, y1, x2, y2])
             # print('1')
@@ -100,12 +97,12 @@ while video_capture.isOpened():
     canny_edges = apply_canny_edge_detection(frame)
     roi_frame = define_region_of_interest(canny_edges)
     hough_lines = cv.HoughLinesP(roi_frame, 2, np.pi / 180, 100, np.array([]), minLineLength=100, maxLineGap=50)
-    lanes_left, lanes_right = identify_lane_lines(frame, hough_lines)
-    # dim = np.shape(frame)
-    # lanes_left, lanes_right = split_lanes(dim[1], hough_lines)
+    # lanes_left, lanes_right = identify_lane_lines(frame, hough_lines)
+    dim = np.shape(frame)
+    lanes_left, lanes_right = split_lanes(dim[1], hough_lines)
 
     lanes_left = verify_lines(lanes_left, "l")
-    lanes_right = verify_lines(lanes_right, "l")
+    lanes_right = verify_lines(lanes_right, "r")
     
     lane_lines_image = draw_lane_lines(frame, lanes_left, lanes_right)
     # left_lane_image = debug_draw(frame, lanes_left)
