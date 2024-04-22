@@ -6,13 +6,18 @@ def apply_canny_edge_detection(frame, upper_thresh=30, lower_thresh=10):
     grayscale = cv.cvtColor(frame, cv.COLOR_RGB2GRAY)
     blurred = cv.GaussianBlur(grayscale, (5, 5), 0)
     edges = cv.Canny(blurred, lower_thresh, upper_thresh)
-    return edges
+
+    ker_size = 3
+    kernel = np.ones((ker_size,ker_size))
+    closed = cv.dilate(edges, kernel)
+    
+    return closed
 
 def define_region_of_interest(frame):
     frame_height, frame_width = frame.shape[:2]
     top_width = frame_width // 3
     bottom_width = frame_width
-    mid_height = 2 * frame_height // 3
+    mid_height = 3 * frame_height // 4
     mask_vertices = np.array([
         [(frame_width // 2 - top_width // 2, mid_height),
          (frame_width // 2 + top_width // 2, mid_height),
@@ -69,8 +74,6 @@ def verify_lines(lanes, side):
 
         if lower_bound <= slope and slope <= upper_bound:
             AGC_verifed_lanes.append([x1, y1, x2, y2])
-            # print('1')
-    # exit()
     
     return AGC_verifed_lanes
 
@@ -88,33 +91,44 @@ def split_lanes(width, hough_lines):
     return left_lanes, right_lanes
 
 # Main execution block
-video_capture = cv.VideoCapture(r"data\video\video2.mp4")
+video_capture = cv.VideoCapture(r"data\video\video3.mp4")
 while video_capture.isOpened():
     successful_frame_read, frame = video_capture.read()
     if not successful_frame_read:
         break
 
+    # Getting the edge image and defining roi
     canny_edges = apply_canny_edge_detection(frame)
     roi_frame = define_region_of_interest(canny_edges)
-    hough_lines = cv.HoughLinesP(roi_frame, 2, np.pi / 180, 100, np.array([]), minLineLength=100, maxLineGap=50)
-    # lanes_left, lanes_right = identify_lane_lines(frame, hough_lines)
+
+    # Getting the hough lines from the image
+    hough_lines = cv.HoughLinesP(roi_frame, 2, np.pi / 180, 100, np.array([]), minLineLength=100, maxLineGap=150)
     dim = np.shape(frame)
+    
+    # Splitting the left and right lanes
     lanes_left, lanes_right = split_lanes(dim[1], hough_lines)
 
+    # Filtering the lines using AGC
     lanes_left = verify_lines(lanes_left, "l")
     lanes_right = verify_lines(lanes_right, "r")
     
     lane_lines_image = draw_lane_lines(frame, lanes_left, lanes_right)
-    # left_lane_image = debug_draw(frame, lanes_left)
-    # right_lane_image = debug_draw(frame, lanes_right)
     
-    combined_output = cv.addWeighted(frame, 0.9, lane_lines_image, 1, 1)    
-    # combined_output_left = cv.addWeighted(frame, 0.9, left_lane_image, 1, 1)
-    # combined_output_right = cv.addWeighted(frame, 0.9, right_lane_image, 1, 1)
+    combined_output = cv.addWeighted(frame, 0.9, lane_lines_image, 1, 1)
 
     cv.imshow("Lane Lines", combined_output)
-    # cv.imshow("Left", combined_output_left)
-    # cv.imshow("Right", combined_output_right)
+
+    # Debug block, pay no heed
+    left_lane_image = debug_draw(frame, lanes_left)
+    right_lane_image = debug_draw(frame, lanes_right)
+
+    debug_line = lane_lines_image + canny_edges.reshape(dim[0],dim[1],1)
+
+    combined_output_left = cv.addWeighted(frame, 0.9, left_lane_image, 1, 1)
+    combined_output_right = cv.addWeighted(frame, 0.9, right_lane_image, 1, 1)
+
+    cv.imshow("Left", combined_output_left)
+    cv.imshow("Right", combined_output_right)
 
     if cv.waitKey(10) & 0xFF == ord('q'):
         break
