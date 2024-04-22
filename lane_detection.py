@@ -4,10 +4,12 @@ import math
 
 def apply_canny_edge_detection(frame, upper_thresh=30, lower_thresh=10):
     grayscale = cv.cvtColor(frame, cv.COLOR_RGB2GRAY)
-    blurred = cv.GaussianBlur(grayscale, (5, 5), 0)
+    
+    blur_size = 7 #5
+    blurred = cv.GaussianBlur(grayscale, (blur_size, blur_size), 0)
     edges = cv.Canny(blurred, lower_thresh, upper_thresh)
 
-    ker_size = 3
+    ker_size = 5
     kernel = np.ones((ker_size,ker_size))
     closed = cv.dilate(edges, kernel)
     
@@ -42,23 +44,37 @@ def identify_lane_lines(frame, detected_lines):
             lanes_right.append([x1, y1, x2, y2])
     return lanes_left, lanes_right
 
+# def draw_lane_lines(frame, lanes_left, lanes_right):
+#     lane_visualization = np.zeros_like(frame)
+#     for lane in lanes_left + lanes_right:
+#         x1, y1, x2, y2 = lane
+#         cv.line(lane_visualization, (x1, y1), (x2, y2), (0, 255, 0), 5)
+#     return lane_visualization
+
 def draw_lane_lines(frame, lanes_left, lanes_right):
     lane_visualization = np.zeros_like(frame)
-    for lane in lanes_left + lanes_right:
-        x1, y1, x2, y2 = lane
-        cv.line(lane_visualization, (x1, y1), (x2, y2), (0, 255, 0), 5)
+    lanes = [lanes_left, lanes_right]
+    for lane in lanes:
+        try:
+            x1, y1, x2, y2 = lane
+            cv.line(lane_visualization, (x1, y1), (x2, y2), (0, 255, 0), 5)
+        except:
+            pass
     return lane_visualization
 
 def debug_draw(frame, lanes):
     lane_visualization = np.zeros_like(frame)
     for lane in lanes:
+        print(lanes_left, lanes)
         x1, y1, x2, y2 = lane
         cv.line(lane_visualization, (x1, y1), (x2, y2), (0, 255, 0), 5)
     return lane_visualization
 
 
-def verify_lines(lanes, side):
+def verify_lines(lanes, side, dim):
     c = 20
+    FLAG = True
+    LANE_FOUND = False
     AGC_verifed_lanes = []
 
     if side == 'l':
@@ -73,9 +89,32 @@ def verify_lines(lanes, side):
         slope = math.degrees(fit[0])
 
         if lower_bound <= slope and slope <= upper_bound:
-            AGC_verifed_lanes.append([x1, y1, x2, y2])
+            LANE_FOUND = True
+            slope = (y2 - y1) / (x2 - x1)
+
+            y3 = (3 * dim[0]) // 4
+            x3 = int((y3 - y2) // slope) + x2
+
+            y0 = dim[1]
+            x0 = int((y0 - y2) // slope) + x2
+
+            if FLAG:
+                x_new = x0
+                FLAG = False
+
+            if side == 'l' and x0 > x_new:
+                x_new = x0
+            elif side == 'r' and x0 < x_new:
+                x_new = x0
+            
+    if LANE_FOUND and side == 'l':
+        # AGC_verifed_lanes.append([x0, y0, x3, y3])
+        return [x_new, y0, x3, y3]
+    elif LANE_FOUND and side == 'r':
+        # AGC_verifed_lanes.append([x3, y3, x0, y0])
+        return [x3, y3, x_new, y0]
     
-    return AGC_verifed_lanes
+    # return AGC_verifed_lanes
 
 def split_lanes(width, hough_lines):
     left_lanes = []
@@ -109,26 +148,27 @@ while video_capture.isOpened():
     lanes_left, lanes_right = split_lanes(dim[1], hough_lines)
 
     # Filtering the lines using AGC
-    lanes_left = verify_lines(lanes_left, "l")
-    lanes_right = verify_lines(lanes_right, "r")
+    lanes_left = verify_lines(lanes_left, "l", dim)
+    lanes_right = verify_lines(lanes_right, "r", dim)
     
     lane_lines_image = draw_lane_lines(frame, lanes_left, lanes_right)
     
+    debug_line = lane_lines_image + canny_edges.reshape(dim[0],dim[1],1)
     combined_output = cv.addWeighted(frame, 0.9, lane_lines_image, 1, 1)
 
     cv.imshow("Lane Lines", combined_output)
 
     # Debug block, pay no heed
-    left_lane_image = debug_draw(frame, lanes_left)
-    right_lane_image = debug_draw(frame, lanes_right)
+    # left_lane_image = debug_draw(frame, lanes_left)
+    # right_lane_image = debug_draw(frame, lanes_right)
 
-    debug_line = lane_lines_image + canny_edges.reshape(dim[0],dim[1],1)
+    # debug_line = lane_lines_image + canny_edges.reshape(dim[0],dim[1],1)
 
-    combined_output_left = cv.addWeighted(frame, 0.9, left_lane_image, 1, 1)
-    combined_output_right = cv.addWeighted(frame, 0.9, right_lane_image, 1, 1)
+    # combined_output_left = cv.addWeighted(frame, 0.9, left_lane_image, 1, 1)
+    # combined_output_right = cv.addWeighted(frame, 0.9, right_lane_image, 1, 1)
 
-    cv.imshow("Left", combined_output_left)
-    cv.imshow("Right", combined_output_right)
+    # cv.imshow("Left", combined_output_left)
+    # cv.imshow("Right", combined_output_right)
 
     if cv.waitKey(10) & 0xFF == ord('q'):
         break
